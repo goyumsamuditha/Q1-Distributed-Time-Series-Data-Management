@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
-from src.ingestion.line_protocol import parse_line_protocol
+from src.ingestion.line_protocol import record_to_line_protocol
+
 
 def test_parse_line_protocol():
     """ Unit test for the parse_line_protocol function."""
@@ -16,7 +17,7 @@ def test_parse_line_protocol():
         'visibility': 15.82,
         'pressure': 1015.13
     }
-    point = parse_line_protocol(sample_record)
+    point = record_to_line_protocol(sample_record)
     line_protocol = point.to_line_protocol()
     
     assert "weather_observations" in line_protocol

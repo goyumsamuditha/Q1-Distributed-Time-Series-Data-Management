@@ -1,4 +1,4 @@
-from influxdb_client import point
+from influxdb_client import Point
 
 def record_to_line_protocol(record: dict) -> Point:
     """ Convert a weather observation record to InfluxDB line protocol format."""

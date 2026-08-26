@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def run_ingestion(file_path:str, batch_size:int=5000):
-    
+    """ Ingest data from a CSV file into InfluxDB."""
     client = InfluxDBClient(url=url, token=token, org=org)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     points = []

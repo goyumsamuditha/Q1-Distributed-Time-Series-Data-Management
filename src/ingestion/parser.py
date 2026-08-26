@@ -17,7 +17,7 @@ def parse_csv(file_path: str):
             dt = pd.to_datetime(row['Formatted Date'])
             if pd.isna(dt):
                 continue
-            yield = {
+            yield  {
                 'timestamp': dt,
                 'summary': str(row.get('Summary', 'Unknown')),
                 'precip_type': str(row.get('Precip Type', 'Unknown')),

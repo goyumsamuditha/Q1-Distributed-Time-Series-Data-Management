@@ -1,0 +1,6 @@
+influxdb-client>=1.36.0
+pandas>=2.0.0
+pytest>=7.0.0
+python-dotenv>=1.0.0
+kagglehub>=0.1.7
+requests>=2.28.0

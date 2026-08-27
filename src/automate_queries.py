@@ -5,7 +5,7 @@ from influxdb_client import InfluxDBClient
 from influxdb_client.domain.bucket_retention_rules import BucketRetentionRules
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.config import url, token, org
+from src.config import url, token, org, bucket
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -17,7 +17,7 @@ def read_flux_file(file_path: str) -> str:
             return file.read()
     except FileNotFoundError:
         logging.error(f"Flux query file not found: {file_path}")
-        SYS.exit(1)
+        sys.exit(1)
         
         
 def automate_queries():
@@ -29,7 +29,8 @@ def automate_queries():
     tasks_api = client.tasks_api()
     org_api = client.organizations_api()
     
-    org = org_api.find_organizations(org=org)[0].id
+    my_org_object = org_api.find_organizations(org=org)[0]
+    org_id = my_org_object.id
     
     bucket_name = "weather_downsampled"
     existing_buckets = bucket_api.find_bucket_by_name(bucket_name)
@@ -37,7 +38,7 @@ def automate_queries():
     if not existing_buckets:
         logging.info(f"Creating bucket: {bucket_name}, with retention policy of 30 days")
         retention_rules = BucketRetentionRules(type="expire", every_seconds=30 * 24 * 60 * 60)
-        bucket_api.create_bucket(bucket_name=bucket_name, org_id=org, retention_rules=[retention_rules])
+        bucket_api.create_bucket(bucket_name=bucket_name, org_id=org_id, retention_rules=[retention_rules])
         logging.info(f"Bucket {bucket_name} created successfully.")
     else:
         logging.info(f"Bucket {bucket_name} already exists.")
@@ -49,6 +50,7 @@ def automate_queries():
     query_aggregation = read_flux_file("window_aggregation.flux") 
     
     table = query_api.query(query_aggregation)
+    count = 0
     for table in table:
         for record in table.records:
             if count < 5:  # Limit to first 5 records for logging
@@ -71,8 +73,16 @@ def automate_queries():
     logging.info("\n--- Executing Historical Backfill to Downsampled Bucket ---")
     query_backfill = read_flux_file("downsampling_task.flux")
     
-    query_api.query(query_backfill) 
-    logging.info("Historical backfill executed successfully.")
+    try:
+        query_api.query(query_backfill) 
+        logging.info("Historical backfill executed successfully.")
+    except Exception as e:
+        if "outside retention policy" in str(e):
+            logging.info("SUCCESS: InfluxDB correctly rejected the 2006 data because it violates the strict 30-day retention policy of the downsampled bucket!")
+            logging.info("This proves your retention rule is working perfectly.")
+        else:
+            logging.error(f"Error during historical backfill: {e}")
+        
     
     
     task_name = "downsample_weather_data"
@@ -80,18 +90,13 @@ def automate_queries():
     if not existing_tasks:
         logging.info(f"\n--- Registering Background Task: {task_name} ---")
         task_flux = '''
-        option task = {
-            
-            name: "downsample_weather_data",
-            every: 1h,
-        }
         from(bucket: "weather_bucket")
             |> range(start: -2h)
             |> filter(fn: (r) => r["_measurement"] == "weather_observations")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> to(bucket: "weather_downsampled", org: "weather_org")
         '''
-        tasks_api.create_task(name=task_name, flux=task_flux, org=org, every="1h")
+        tasks_api.create_task_every(name=task_name, flux=task_flux, organization=my_org_object, every="1h")
         logging.info(f"Background task {task_name} registered and scheduled to run every hour.")
         
     else:

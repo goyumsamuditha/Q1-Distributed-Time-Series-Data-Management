@@ -60,13 +60,13 @@ Run the following commands sequentially from the root directory to execute the c
 2.  **Fetch the Dataset:**
     Download the raw historical weather data into the local `data/raw/` directory.
     ```bash
-    python src/downloader.py
+    python src/ingestion/downloader.py
     ```
 
 3.  **Execute High-Throughput Ingestion:**
     Parse, format, and upload the data. The terminal will output the progress of the batch writes until all 96,453 historical records are successfully committed to the database.
     ```bash
-    python src/ingest.py data/raw/weatherHistory.csv
+    python src/ingestion/ingest.py data/raw/weatherHistory.csv
     ```
 
 4.  **Automate Analytics and Lifecycle Policies:**
